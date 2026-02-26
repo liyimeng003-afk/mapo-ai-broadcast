@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import xml.etree.ElementTree as ET
@@ -6,8 +6,9 @@ from datetime import datetime, timedelta
 from html import unescape
 import re
 import logging
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.')
 CORS(app)
 
 logging.basicConfig(level=logging.INFO)
@@ -176,6 +177,11 @@ def fetch_rss(source):
         logger.error(f"❌ {source['name']} 获取失败: {e}")
 
     return news_list
+
+@app.route('/')
+def index():
+    """返回前端页面"""
+    return send_from_directory('.', 'index.html')
 
 @app.route('/api/news', methods=['GET'])
 def get_news():
