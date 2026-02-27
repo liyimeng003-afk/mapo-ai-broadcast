@@ -133,7 +133,7 @@ def fetch_rss(source, max_retries=3):
             # 改为72小时（3天）
             seventy_two_hours_ago = datetime.now() - timedelta(hours=72)
 
-        for item in items:
+            for item in items:
             try:
                 title = item.find('title')
                 title = title.text if title is not None else ''
