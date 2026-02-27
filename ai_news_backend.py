@@ -104,26 +104,34 @@ def parse_date(date_str):
 
     return datetime.now()
 
-def fetch_rss(source):
-    """获取并解析 RSS 源"""
+def fetch_rss(source, max_retries=3):
+    """获取并解析 RSS 源，带重试机制"""
     news_list = []
-    try:
-        logger.info(f"正在获取 {source['name']}...")
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"正在获取 {source['name']} (尝试 {attempt + 1}/{max_retries})...")
 
-        response = requests.get(source['url'], headers=headers, timeout=10)
-        response.raise_for_status()
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
 
-        # 解析 XML
-        root = ET.fromstring(response.content)
+            # 增加超时时间到20秒
+            response = requests.get(source['url'], headers=headers, timeout=20)
+            response.raise_for_status()
 
-        # 查找所有 item 元素
-        items = root.findall('.//item')
+            # 解析 XML
+            root = ET.fromstring(response.content)
 
-        thirty_days_ago = datetime.now() - timedelta(days=30)
+            # 查找所有 item 元素
+            items = root.findall('.//item')
+
+            if not items:
+                logger.warning(f"{source['name']}: 未找到任何新闻条目")
+                continue
+
+            # 改为72小时（3天）
+            seventy_two_hours_ago = datetime.now() - timedelta(hours=72)
 
         for item in items:
             try:
@@ -145,8 +153,8 @@ def fetch_rss(source):
                 if pub_date_obj.tzinfo:
                     pub_date_obj = pub_date_obj.replace(tzinfo=None)
 
-                # 过滤 30 天以前的新闻
-                if pub_date_obj < thirty_days_ago:
+                # 过滤 72 小时以前的新闻
+                if pub_date_obj < seventy_two_hours_ago:
                     continue
 
                 # 如果需要关键词筛选
@@ -171,11 +179,19 @@ def fetch_rss(source):
                 logger.warning(f"解析条目失败: {e}")
                 continue
 
-        logger.info(f"✅ {source['name']}: 成功获取 {len(news_list)} 条")
+            logger.info(f"✅ {source['name']}: 成功获取 {len(news_list)} 条（72小时内）")
+            return news_list  # 成功获取后直接返回，不再重试
 
-    except Exception as e:
-        logger.error(f"❌ {source['name']} 获取失败: {e}")
+        except Exception as e:
+            logger.error(f"❌ {source['name']} 第 {attempt + 1} 次尝试失败: {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"等待 2 秒后重试...")
+                import time
+                time.sleep(2)
+            continue
 
+    # 所有重试都失败
+    logger.error(f"❌ {source['name']} 在 {max_retries} 次尝试后仍然失败")
     return news_list
 
 @app.route('/')
