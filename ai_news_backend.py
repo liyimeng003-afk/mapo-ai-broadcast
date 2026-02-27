@@ -134,50 +134,50 @@ def fetch_rss(source, max_retries=3):
             seventy_two_hours_ago = datetime.now() - timedelta(hours=72)
 
             for item in items:
-            try:
-                title = item.find('title')
-                title = title.text if title is not None else ''
+                try:
+                    title = item.find('title')
+                    title = title.text if title is not None else ''
 
-                link = item.find('link')
-                link = link.text if link is not None else ''
+                    link = item.find('link')
+                    link = link.text if link is not None else ''
 
-                description = item.find('description')
-                description = description.text if description is not None else ''
-                description = strip_html(description)
+                    description = item.find('description')
+                    description = description.text if description is not None else ''
+                    description = strip_html(description)
 
-                pub_date = item.find('pubDate')
-                pub_date_str = pub_date.text if pub_date is not None else ''
-                pub_date_obj = parse_date(pub_date_str)
+                    pub_date = item.find('pubDate')
+                    pub_date_str = pub_date.text if pub_date is not None else ''
+                    pub_date_obj = parse_date(pub_date_str)
 
-                # 移除时区信息以便比较
-                if pub_date_obj.tzinfo:
-                    pub_date_obj = pub_date_obj.replace(tzinfo=None)
+                    # 移除时区信息以便比较
+                    if pub_date_obj.tzinfo:
+                        pub_date_obj = pub_date_obj.replace(tzinfo=None)
 
-                # 过滤 72 小时以前的新闻
-                if pub_date_obj < seventy_two_hours_ago:
-                    continue
-
-                # 如果需要关键词筛选
-                if source['filter_keywords']:
-                    if not contains_ai_keywords(title + ' ' + description):
+                    # 过滤 72 小时以前的新闻
+                    if pub_date_obj < seventy_two_hours_ago:
                         continue
 
-                news_item = {
-                    'title': title,
-                    'link': link,
-                    'description': description[:200],
-                    'pubDate': pub_date_obj.isoformat(),
-                    'timestamp': int(pub_date_obj.timestamp() * 1000),
-                    'source': source['name'],
-                    'category': source['category'],
-                    'color': source['color']
-                }
+                    # 如果需要关键词筛选
+                    if source['filter_keywords']:
+                        if not contains_ai_keywords(title + ' ' + description):
+                            continue
 
-                news_list.append(news_item)
+                    news_item = {
+                        'title': title,
+                        'link': link,
+                        'description': description[:200],
+                        'pubDate': pub_date_obj.isoformat(),
+                        'timestamp': int(pub_date_obj.timestamp() * 1000),
+                        'source': source['name'],
+                        'category': source['category'],
+                        'color': source['color']
+                    }
 
-            except Exception as e:
-                logger.warning(f"解析条目失败: {e}")
-                continue
+                    news_list.append(news_item)
+
+                except Exception as e:
+                    logger.warning(f"解析条目失败: {e}")
+                    continue
 
             logger.info(f"✅ {source['name']}: 成功获取 {len(news_list)} 条（72小时内）")
             return news_list  # 成功获取后直接返回，不再重试
